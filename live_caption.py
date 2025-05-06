@@ -198,11 +198,11 @@ def main(is_screenshot=False):
                             screenshot_img.save(f"{datetime_now}/{current_image_filename}")
                             # 添加图片md语法
                             f.write(f"\n\n![{current_image_filename}]({current_image_filename})\n")
-                    last_text_last_part = text[len(text) - 200:len(text) - 100] if len(text) > 200 else text
+                    last_text_last_part = text[len(text) - 200:len(text) - 100] if len(text) > 200 else ""
                     timer_write_file = datetime.now()
 
             # 进行翻译
-            if timer_translate + random_time(10, 20) <= datetime.now():
+            if timer_translate + random_time(translate_delta_int_low, translate_delta_int_high) <= datetime.now():
                 text = scroll.Name  # this is the current caption line(s)
                 start_translation_index = len(text) - 500 if len(text) > 500 else 0
                 translated_text = google_translate_web(text[start_translation_index:], target_lang="zh-CN")
@@ -220,10 +220,18 @@ def main(is_screenshot=False):
 
 
 if __name__ == '__main__':
-    screenshot_input = input("if screenshot - 是否截图？(y/n)：")
+    print("输入后按回车键")
+    screenshot_input = input("是否截图？(y/n)：")
+    write_to_file_delta_int = input("将字幕和截图存进文件的间隔时间设置（电脑越好可以越快）")
+    WRITE_TO_FILE_INTERVAL = timedelta(seconds=int(write_to_file_delta_int))
+    print("翻译间隔时间设置，（建议别太快，google翻译，封IP）")
+    translate_delta_int_low = input("随机翻译间隔下限（秒）建议6以上：")
+    translate_delta_int_low = int(translate_delta_int_low)
+    translate_delta_int_high = input("随机翻译间隔上限（秒）：")
+    translate_delta_int_high = int(translate_delta_int_high)
     x1 = y1 = x2 = y2 = 0
     if screenshot_input.lower() == 'y':
-        print("Please click the left top corner of screenshot area - 请点击截图区域的左上角")
+        print("请点击截图区域的左上角")
         # 等待鼠标点击
         # 开始监听鼠标点击
         with mouse.Listener(on_click=on_click) as listener:
