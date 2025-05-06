@@ -129,14 +129,15 @@ def main():
         last_text_write = ""
         while True:
             # 进行请求
-            if timer_poll + POLL_INTERVAL <= datetime.now():
-                text = scroll.Name  # this is the current caption line(s)
-                if text != last_text_poll:
-                    print(f"{text[last_index_poll:]}\n---")
-                    last_index_poll = len(text) - 10 if len(text) > 10 else 0
-                    last_text_poll = text
-                    pass
-                timer_poll = datetime.now()
+            # if timer_poll + POLL_INTERVAL <= datetime.now():
+            #     text = scroll.Name  # this is the current caption line(s)
+            #     if text != last_text_poll:
+            #         print(f"{text[last_index_poll:]}\n---")
+            #         last_index_poll = len(text) - 10 if len(text) > 10 else 0
+            #         last_text_poll = text
+            #         pass
+            #     timer_poll = datetime.now()
+
             # 将text写入文件，续写
             if timer_write_file + WRITE_TO_FILE_INTERVAL <= datetime.now():
                 text = scroll.Name  # this is the current caption line(s)
@@ -151,6 +152,7 @@ def main():
                     f.write(text[text.index(last_text_last_part) + len(last_text_last_part):])
                     last_text_last_part = text[len(text) - 200:len(text) - 100] if len(text) > 200 else text
                     timer_write_file = datetime.now()
+
             # 进行翻译
             if timer_translate + random_time(10, 20) <= datetime.now():
                 text = scroll.Name  # this is the current caption line(s)
@@ -158,7 +160,6 @@ def main():
                 translated_text = google_translate_web(text[start_translation_index:], target_lang="zh-CN")
                 print(f"翻译结果{translated_text}\n---")
                 timer_translate = datetime.now()
-
             time.sleep(1)
     except KeyboardInterrupt:
         print("\nInterrupted, exiting.")

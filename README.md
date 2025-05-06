@@ -13,3 +13,14 @@ Translation is also supported.
 - [x] Write to file based on some interval
 - [x] Translate to the target language
 - [ ] Auto input to the browser's AI website to summarize
+
+## Usage
+
+1. Install the required packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Run the script:
+   ```bash
+   python live_caption.py
+   ```
