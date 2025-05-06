@@ -189,27 +189,27 @@ def main(is_screenshot=False):
                 text = scroll.Name  # this is the current caption line(s)
                 if text == last_text_write:
                     print("没有新的内容，跳过写入文件")
-                    continue
-                last_text_write = text
-                with open(f"{datetime_now}/live_caption_{datetime_now}.md", "a", encoding="utf-8") as f:
-                    # 只写入新增的内容
-                    f.write(f"{text[last_index_write:]}")
-                    last_index_write = len(text)
+                else:
+                    last_text_write = text
+                    with open(f"{datetime_now}/live_caption_{datetime_now}.md", "a", encoding="utf-8") as f:
+                        # 只写入新增的内容
+                        f.write(f"{text[last_index_write:]}")
+                        last_index_write = len(text)
 
-                    # 添加图片md语法
-                    if is_screenshot:
-                        # 截图
-                        screenshot_img = screenshot()
-                        # 判断是否有变化
-                        is_img_changed, previous_hash = is_slide_changed(screenshot_img, previous_hash)
-                        if is_img_changed:
-                            print("截图有变化，保存截图")
-                            current_image_filename = f"live_caption_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.png"
-                            screenshot_img.save(f"{datetime_now}/{current_image_filename}")
-                            # 添加图片md语法
-                            f.write(f"\n\n![{current_image_filename}]({current_image_filename})\n")
+                        # 添加图片md语法
+                        if is_screenshot:
+                            # 截图
+                            screenshot_img = screenshot()
+                            # 判断是否有变化
+                            is_img_changed, previous_hash = is_slide_changed(screenshot_img, previous_hash)
+                            if is_img_changed:
+                                print("截图有变化，保存截图")
+                                current_image_filename = f"live_caption_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.png"
+                                screenshot_img.save(f"{datetime_now}/{current_image_filename}")
+                                # 添加图片md语法
+                                f.write(f"\n\n![{current_image_filename}]({current_image_filename})\n")
 
-                    timer_write_file = datetime.now()
+                        timer_write_file = datetime.now()
 
             # 进行翻译
             if timer_translate + random_time(translate_delta_int_low, translate_delta_int_high) <= datetime.now():
