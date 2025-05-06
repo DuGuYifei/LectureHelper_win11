@@ -1,15 +1,33 @@
+import os
+
 import psutil
 import subprocess
 import time
 from random import randint
 from datetime import datetime, timedelta
+from PIL import ImageGrab
 
 import requests
 import uiautomation as auto
+from pynput import mouse
+import imagehash
+
+
+def on_click(x, y, button, pressed):
+    if pressed:
+        print(f"鼠标点击位置：({x}, {y})")
+        # 停止监听
+        return False
+
 
 LIVECAP_EXE = r"C:\Windows\System32\LiveCaptions.exe"
 POLL_INTERVAL = timedelta(seconds=120)  # seconds
-WRITE_TO_FILE_INTERVAL = timedelta(seconds=20)  # seconds
+WRITE_TO_FILE_INTERVAL = timedelta(seconds=5)  # seconds
+
+
+def screenshot():
+    img = ImageGrab.grab(bbox=(x1, y1, x2, y2))
+    return img
 
 
 def random_time(start_time, end_time):
@@ -80,7 +98,21 @@ def google_translate_web(text, target_lang='zh-CN'):
         return f"请求失败，状态码: {response.status_code}"
 
 
-def main():
+def is_slide_changed(current_img, last_hash, threshold=5):
+    processed = current_img.convert('L').resize((256, 256))
+    current_hash = imagehash.phash(processed)
+
+    if last_hash is None:
+        last_hash = current_hash
+        return True, last_hash
+
+    changed = abs(current_hash - last_hash) > threshold
+    if changed:
+        last_hash = current_hash  # 更新哈希值
+    return changed, last_hash
+
+
+def main(is_screenshot=False):
     # 1) Kill old instances
     kill_all_livecaptions()
     time.sleep(0.2)
@@ -116,7 +148,10 @@ def main():
         time.sleep(1.0)
 
     print("✅ Attached! Waiting for captions…")
-    datetime_now = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+    datetime_now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    # 创建文件夹
+    if not os.path.exists(datetime_now):
+        os.makedirs(datetime_now)
 
     try:
         print(scroll.Name)
@@ -127,6 +162,7 @@ def main():
         last_index_poll = 0
         last_text_last_part = ""
         last_text_write = ""
+        previous_hash = None
         while True:
             # 进行请求
             # if timer_poll + POLL_INTERVAL <= datetime.now():
@@ -145,11 +181,23 @@ def main():
                     print("没有新的内容，跳过写入文件")
                     continue
                 last_text_write = text
-                with open(f"live_caption_{datetime_now}.txt", "a", encoding="utf-8") as f:
+                with open(f"{datetime_now}/live_caption_{datetime_now}.md", "a", encoding="utf-8") as f:
                     # 只写入新增的内容
                     # 找到text的last_text_last_part，然后续写
                     # print(f"写入文件：{text[text.index(last_text_last_part) + len(last_text_last_part) - 10:]}")
                     f.write(text[text.index(last_text_last_part) + len(last_text_last_part):])
+                    # 添加图片md语法
+                    if is_screenshot:
+                        # 截图
+                        screenshot_img = screenshot()
+                        # 判断是否有变化
+                        is_img_changed, previous_hash = is_slide_changed(screenshot_img, previous_hash)
+                        if is_img_changed:
+                            print("截图有变化，保存截图")
+                            current_image_filename = f"live_caption_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.png"
+                            screenshot_img.save(f"{datetime_now}/{current_image_filename}")
+                            # 添加图片md语法
+                            f.write(f"\n\n![{current_image_filename}]({current_image_filename})\n")
                     last_text_last_part = text[len(text) - 200:len(text) - 100] if len(text) > 200 else text
                     timer_write_file = datetime.now()
 
@@ -172,4 +220,23 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    screenshot_input = input("if screenshot - 是否截图？(y/n)：")
+    x1 = y1 = x2 = y2 = 0
+    if screenshot_input.lower() == 'y':
+        print("Please click the left top corner of screenshot area - 请点击截图区域的左上角")
+        # 等待鼠标点击
+        # 开始监听鼠标点击
+        with mouse.Listener(on_click=on_click) as listener:
+            listener.join()
+        # 获取鼠标点击位置
+        x1, y1 = auto.GetCursorPos()
+        print(f"左上角坐标：({x1}, {y1})")
+        print("Please click the right bottom corner of screenshot area - 请点击截图区域的右下角")
+        # 等待鼠标点击
+        # 开始监听鼠标点击
+        with mouse.Listener(on_click=on_click) as listener:
+            listener.join()
+        # 获取鼠标点击位置
+        x2, y2 = auto.GetCursorPos()
+
+    main(is_screenshot=(screenshot_input.lower() == 'y'))
