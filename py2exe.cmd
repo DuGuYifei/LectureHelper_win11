@@ -1,0 +1,1 @@
+pyinstaller --clean --onefile --name "lecture_helper_v"  "./live_caption.py"
