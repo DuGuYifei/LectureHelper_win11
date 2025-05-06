@@ -163,6 +163,7 @@ def main(is_screenshot=False):
         last_text_last_part = ""
         last_text_write = ""
         previous_hash = None
+        index_count_when_smaller_than_maximum_caption = 0
         while True:
             # 进行请求
             # if timer_poll + POLL_INTERVAL <= datetime.now():
@@ -185,7 +186,14 @@ def main(is_screenshot=False):
                     # 只写入新增的内容
                     # 找到text的last_text_last_part，然后续写
                     # print(f"写入文件：{text[text.index(last_text_last_part) + len(last_text_last_part) - 10:]}")
-                    f.write(text[text.index(last_text_last_part) + len(last_text_last_part):])
+                    temp_index = len(text)
+                    if temp_index > 400:
+                        print("大于400，写入文件")
+                        f.write(text[text.index(last_text_last_part) + len(last_text_last_part):])
+                    else:
+                        print("小于400，写入文件")
+                        f.write(text[index_count_when_smaller_than_maximum_caption:])
+                        index_count_when_smaller_than_maximum_caption = temp_index
                     # 添加图片md语法
                     if is_screenshot:
                         # 截图
@@ -198,7 +206,7 @@ def main(is_screenshot=False):
                             screenshot_img.save(f"{datetime_now}/{current_image_filename}")
                             # 添加图片md语法
                             f.write(f"\n\n![{current_image_filename}]({current_image_filename})\n")
-                    last_text_last_part = text[len(text) - 200:len(text) - 100] if len(text) > 200 else ""
+                    last_text_last_part = text[len(text) - 100:len(text) - 30] if len(text) > 200 else ""
                     timer_write_file = datetime.now()
 
             # 进行翻译
