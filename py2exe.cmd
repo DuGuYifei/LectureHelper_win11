@@ -1,1 +1,1 @@
-pyinstaller --clean --onefile --name "lecture_helper_v"  "./live_caption.py"
+pyinstaller --clean --onefile --icon=helper.ico --name "lecture_helper_v"  "./live_caption.py"

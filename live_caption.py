@@ -1,3 +1,4 @@
+import difflib
 import os
 
 import psutil
@@ -54,10 +55,36 @@ def get_livecaptions_proc():
 
 def start_livecaptions():
     """Start a new LiveCaptions.exe (hidden window)."""
-    return subprocess.Popen(
+    proc = subprocess.Popen(
         [LIVECAP_EXE],
         creationflags=subprocess.CREATE_NO_WINDOW
     )
+    # Give it a moment to spin up and register its UI
+    time.sleep(1.0)
+    return proc
+
+
+def get_livecaptions_scroll(proc):
+    window = auto.WindowControl(
+        searchDepth=1,
+        ProcessId=proc.pid,
+        ClassName='LiveCaptionsDesktopWindow'
+    )
+    if not window.Exists(5):
+        print("❌ Cannot find Live Captions window.")
+        return
+
+    # 5) Find the scroll-viewer pane that holds the text
+    scroll = window.Control(
+        AutomationId='CaptionsScrollViewer'
+    )
+    while not scroll.Exists(5):
+        print(
+            "❌ Cannot find CaptionsScrollViewer element. May because there is no audio playing. \n- 可能是因为没有音频播放。将循环等待...")
+        time.sleep(1.0)
+
+    print("✅ Attached! Waiting for captions…")
+    return scroll
 
 
 def google_translate_web(text, target_lang='zh-CN'):
@@ -120,50 +147,32 @@ def main(is_screenshot=False):
     # 2) Launch Live Captions
     proc = start_livecaptions()
 
-    # 3) Give it a moment to spin up and register its UI
-    time.sleep(1.0)
-
     # 测试用-获取当前的live captions进程
     # proc = get_livecaptions_proc()
     # if proc is None:
     #     print("❌ Cannot find Live Captions process.")
     #     return
 
-    # 4) Attach to the LiveCaptions window
-    window = auto.WindowControl(
-        searchDepth=1,
-        ProcessId=proc.pid,
-        ClassName='LiveCaptionsDesktopWindow'
-    )
-    if not window.Exists(5):
-        print("❌ Cannot find Live Captions window.")
-        return
+    # 3) Attach to the LiveCaptions window
+    scroll = get_livecaptions_scroll(proc)
 
-    # 5) Find the scroll-viewer pane that holds the text
-    scroll = window.Control(
-        AutomationId='CaptionsScrollViewer'
-    )
-    while not scroll.Exists(5):
-        print("❌ Cannot find CaptionsScrollViewer element. May because there is no audio playing. \n- 可能是因为没有音频播放。将循环等待...")
-        time.sleep(1.0)
-
-    print("✅ Attached! Waiting for captions…")
     datetime_now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     # 创建文件夹
     if not os.path.exists(datetime_now):
         os.makedirs(datetime_now)
 
     try:
-        print(scroll.Name)
-        timer_write_file = datetime.now()
         timer_poll = datetime.now()
-        timer_translate = datetime.now()
         last_text_poll = ""
         last_index_poll = 0
-        last_text_last_part = ""
+
+        timer_write_file = datetime.now()
         last_text_write = ""
+        last_index_write = 0
         previous_hash = None
-        index_count_when_smaller_than_maximum_caption = 0
+
+        timer_translate = datetime.now()
+
         while True:
             # 进行请求
             # if timer_poll + POLL_INTERVAL <= datetime.now():
@@ -184,16 +193,9 @@ def main(is_screenshot=False):
                 last_text_write = text
                 with open(f"{datetime_now}/live_caption_{datetime_now}.md", "a", encoding="utf-8") as f:
                     # 只写入新增的内容
-                    # 找到text的last_text_last_part，然后续写
-                    # print(f"写入文件：{text[text.index(last_text_last_part) + len(last_text_last_part) - 10:]}")
-                    temp_index = len(text)
-                    if temp_index > 400:
-                        print("大于400，写入文件")
-                        f.write(text[text.index(last_text_last_part) + len(last_text_last_part):])
-                    else:
-                        print("小于400，写入文件")
-                        f.write(text[index_count_when_smaller_than_maximum_caption:])
-                        index_count_when_smaller_than_maximum_caption = temp_index
+                    f.write(f"{text[last_index_write:]}")
+                    last_index_write = len(text)
+
                     # 添加图片md语法
                     if is_screenshot:
                         # 截图
@@ -206,7 +208,7 @@ def main(is_screenshot=False):
                             screenshot_img.save(f"{datetime_now}/{current_image_filename}")
                             # 添加图片md语法
                             f.write(f"\n\n![{current_image_filename}]({current_image_filename})\n")
-                    last_text_last_part = text[len(text) - 100:len(text) - 30] if len(text) > 200 else ""
+
                     timer_write_file = datetime.now()
 
             # 进行翻译
@@ -216,6 +218,21 @@ def main(is_screenshot=False):
                 translated_text = google_translate_web(text[start_translation_index:], target_lang="zh-CN")
                 print(f"翻译结果{translated_text}\n---")
                 timer_translate = datetime.now()
+
+            if last_index_write >= 2900:
+                last_index_write = 0
+                # 重启程序
+                print("live caption过大，重启字幕程序")
+                # 关闭进程
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+                # 重新启动
+                proc = start_livecaptions()
+                # 重新获取窗口
+                scroll = get_livecaptions_scroll(proc)
+
             time.sleep(1)
     except KeyboardInterrupt:
         print("\nInterrupted, exiting.")
@@ -229,7 +246,6 @@ def main(is_screenshot=False):
 
 if __name__ == '__main__':
     print("输入后按回车键")
-    screenshot_input = input("是否截图？(y/n)：")
     write_to_file_delta_int = input("将字幕和截图存进文件的间隔时间设置（电脑越好可以越快）")
     WRITE_TO_FILE_INTERVAL = timedelta(seconds=int(write_to_file_delta_int))
     print("翻译间隔时间设置，（建议别太快，google翻译，封IP）")
@@ -237,6 +253,7 @@ if __name__ == '__main__':
     translate_delta_int_low = int(translate_delta_int_low)
     translate_delta_int_high = input("随机翻译间隔上限（秒）：")
     translate_delta_int_high = int(translate_delta_int_high)
+    screenshot_input = input("是否截图？(y/n)：")
     x1 = y1 = x2 = y2 = 0
     if screenshot_input.lower() == 'y':
         print("请点击截图区域的左上角")
