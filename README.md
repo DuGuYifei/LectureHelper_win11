@@ -13,7 +13,7 @@ Translation is also supported.
 - [x] Write to file based on some interval
 - [x] Translate to the target language
 - [ ] Auto input to the browser's AI website to summarize
-- [ ] Generate markdown with screenshot of lecture
+- [x] Generate markdown with screenshot of lecture
 
 ## Usage
 
